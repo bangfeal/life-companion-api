@@ -1,0 +1,48 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Life Companion API", "version": "1.0.0" },
+  "components": { "schemas": {} },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Process liveness (does not check PostgreSQL)",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["status"],
+                  "properties": {
+                    "status": { "type": "string", "enum": ["ok"] }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server failure",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Compiled output and TypeScript cache
+dist/
+*.tsbuildinfo
+
+# Test coverage and caches
+coverage/
+.vitest/
+.cache/
+
+# Local environment and secrets (keep shareable templates)
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+.aws/
+
+# Logs and diagnostic reports
+*.log
+report.*.json
+
+# Local editor and operating system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
