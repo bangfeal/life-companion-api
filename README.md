@@ -1,6 +1,6 @@
 # Life Companion API
 
-Independent REST API with identity, revocable bearer sessions, goals, daily habits/logs, tasks, and scheduled events. Requires Node.js 24 and npm; database tasks also require PostgreSQL 17 (Docker Compose recommended).
+Independent REST API with identity, revocable bearer sessions, shared life-management capabilities, sleep tracking, education, and descriptive cross-domain review. Requires Node.js 24 and npm; database tasks also require PostgreSQL 17 (Docker Compose recommended).
 
 ## Local development
 
@@ -34,7 +34,7 @@ docker compose exec postgres createdb -U companion life_companion_test
 TEST_DATABASE_URL=postgres://companion:companion@localhost:5432/life_companion_test npm run test:integration
 ```
 
-Tests apply migrations and verify repeat execution. CI runs them against a fresh PostgreSQL service. `npm run db:down` stops the database while preserving its named volume. Identity and shared life-management tables are implemented. Sleep, education, recommendations, and AI remain future milestones.
+Tests apply migrations and verify repeat execution. CI runs them against a fresh PostgreSQL service. `npm run db:down` stops the database while preserving its named volume. Identity and shared life-management tables are implemented. Sleep and education are now implemented; evidence-backed recommendations and AI remain future milestones.
 
 ## Project layout
 
@@ -45,7 +45,7 @@ Tests apply migrations and verify repeat execution. CI runs them against a fresh
 - `tests`: HTTP/configuration tests and explicit PostgreSQL integration tests.
 - `docs/decisions`: architecture decisions.
 
-M2 identity and authorization is implemented. See [the identity API guide](docs/identity-api.md) for endpoints, curl examples, and limitations, and [the authentication decision](docs/decisions/0003-identity-and-sessions.md) for session and password design. M3 shared life capabilities are now implemented; see [the life-management API guide](docs/life-management-api.md). Next milestone: sleep recording and deterministic summaries. New domain modules should own persistence and publish application operations; business calculations should remain independent of HTTP and SQL.
+M2 identity and authorization is implemented. See [the identity API guide](docs/identity-api.md) for endpoints, curl examples, and limitations, and [the authentication decision](docs/decisions/0003-identity-and-sessions.md) for session and password design. M3 shared life capabilities are now implemented; see [the life-management API guide](docs/life-management-api.md). M4/M5 sleep and education are implemented; see [their API guide](docs/sleep-education-api.md). Next milestone: evidence-backed deterministic recommendations. New domain modules should own persistence and publish application operations; business calculations should remain independent of HTTP and SQL.
 
 ## Verification status
 
@@ -66,3 +66,13 @@ Goals support measurable manually reported progress and sleep/education domain a
 The composition root `src/life-management.ts` connects public module services. Authorization remains inside each application operation. Cross-module ownership foreign keys and update triggers are explicit SQL contracts in `0003_ownership.sql`; preserve these when changing migrations, and do not bypass migrations with schema-push commands. Deleting linked goals/tasks detaches references while preserving independent records; deleting habits cascades their logs.
 
 See [the M3 decision](docs/decisions/0004-shared-life-capabilities.md) for model limits, module boundaries, pagination, retries, and retention. Apply pending migrations before starting the updated API. Verification uses isolated databases and does not migrate the user's development database.
+
+## M4/M5 specialized domains — 2026-11-27
+
+Sleep supports reported sessions, awake time, naps, quality, edits/history, and deterministic duration/bedtime summaries. Education supports recorded study, examinations/results, subject progress, and scheduling owned study tasks through the public calendar capability. GET `/api/v1/analytics/sleep-study` combines public domain summaries into a descriptive daily review. Missing data stays unknown; no health recommendations or causal claims are produced.
+
+See [the API guide](docs/sleep-education-api.md) and [domain decision](docs/decisions/0005-observed-sleep-education.md). Summaries require explicit from/to instants, at most 93 elapsed days. Full sessions are assigned to their ending local date; history overlap filters differ intentionally. Source row caps return a conflict rather than silently truncate. Same-user overlaps are rejected within sleep and within study, including concurrent writes.
+
+Apply `0004_sleep_education.sql` through `npm run db:migrate` before using the endpoints. It provisions PostgreSQL btree_gist for overlap exclusion; the migration role needs appropriate CREATE privileges or the extension must be pre-installed. Preserve its reviewed manual FK/exclusion/trigger SQL. The new migration is verified against isolated databases; the development database is not automatically migrated.
+
+M4/M5 verification: 30 unit/HTTP tests and 28 PostgreSQL integration tests pass. Source and compiled migrations, schema generation, OpenAPI export, and a real compiled-server smoke flow pass on isolated PostgreSQL databases. Type checking, linting, formatting, and build pass. Hosted CI execution remains unverified.

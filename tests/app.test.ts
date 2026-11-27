@@ -30,6 +30,17 @@ describe('HTTP foundation', () => {
     expect(spec.paths['/api/v1/me'].get.security).toEqual([{ bearerAuth: [] }]);
     expect(spec.components.securitySchemes.bearerAuth.scheme).toBe('bearer');
     for (const path of [
+      '/api/v1/sleep/sessions',
+      '/api/v1/study/sessions',
+      '/api/v1/examinations',
+      '/api/v1/analytics/sleep-study',
+    ]) {
+      expect(spec.paths[path].get.security).toEqual([{ bearerAuth: [] }]);
+    }
+    expect(
+      spec.paths['/api/v1/study/tasks/{id}/schedule'].post.responses['201'],
+    ).toBeDefined();
+    for (const path of [
       '/api/v1/goals',
       '/api/v1/habits',
       '/api/v1/tasks',
@@ -49,6 +60,7 @@ describe('HTTP foundation', () => {
     );
     expect(response.json().title).toBe('Service Unavailable');
     expect((await app.inject('/api/v1/goals')).statusCode).toBe(503);
+    expect((await app.inject('/api/v1/sleep/sessions')).statusCode).toBe(503);
   });
   it('returns Problem Details for missing routes', async () => {
     const app = await setup();

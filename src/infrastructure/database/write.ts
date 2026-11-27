@@ -1,5 +1,5 @@
 import { ApplicationError } from '../../shared/domain/validation.js';
-// Translate a deleted/changed relationship at the persistence boundary.
+// Translate relationship and interval-exclusion conflicts at the persistence boundary.
 export async function databaseWrite<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
@@ -11,11 +11,11 @@ export async function databaseWrite<T>(
       (typeof error === 'object' &&
         error !== null &&
         'code' in error &&
-        error.code === '23503') ||
+        ['23503', '23P01'].includes(String(error.code))) ||
       (typeof cause === 'object' &&
         cause !== null &&
         'code' in cause &&
-        cause.code === '23503')
+        ['23503', '23P01'].includes(String(cause.code)))
     )
       throw new ApplicationError(409);
     throw error;

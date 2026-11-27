@@ -10,7 +10,7 @@ This document contains the implementation guide and the current verified reposit
 
 ## Current repository status — 2026-11-27
 
-M1, M2, and M3 are implemented and locally verified against real PostgreSQL. M4–M8 remain planned; specialized sleep/education, recommendations, and AI are not implemented.
+M1–M5 are implemented and locally verified against real PostgreSQL. M6–M8 remain planned; evidence-backed recommendation rules and AI are not implemented.
 
 - Runtime/tooling: Node.js 24, TypeScript ESM, Fastify, `typebox`, Vitest, ESLint, Prettier, and `@fastify/rate-limit`.
 - `src/app.ts` exports `buildApp(options, identityService?, lifeManagementServices?)`; routes stay registered without a database for contract generation, but identity operations then return 503. `src/main.ts` requires `DATABASE_URL`, composes the identity service, and closes its database pool on shutdown. `/health` remains process-only liveness.
@@ -33,13 +33,25 @@ M1, M2, and M3 are implemented and locally verified against real PostgreSQL. M4�
 - Verified: 23 unit/HTTP tests and 19 PostgreSQL integration tests, including goal/domain CRUD, pagination, daily-log retries, date/DST/overlap filtering, cross-user reads/writes/links, SQL ownership enforcement, detachment/cascades, and concurrent event edits. Type checks, lint, format, and build pass. Source and compiled migration runners passed against a second empty database. A real compiled HTTP smoke test covered all four modules, goal progress, daily logs, link detachment, revocation, credential-free logs, and graceful shutdown.
 - `docs/life-management-api.md` and `docs/decisions/0004-shared-life-capabilities.md` document contracts, model limits, privacy/deletion semantics, and retry limitations. Resource creation POSTs have no general idempotency protocol; clients must not automatically retry uncertain creates. No recurrence/reminder engine or automatic goal aggregation exists.
 
+### M4/M5 implementation
+
+- Branch `feat/m4-m5-sleep-education` starts from merged M3. Sleep owns reported intervals/quality/awake minutes, history/edits/deletion, and deterministic duration/bedtime summaries. Education owns study sessions, examinations/results, and descriptive progress. Analytics combines published sleep/education summaries; it never queries their tables. Pure calculations require neither HTTP nor PostgreSQL.
+- CRUD/list routes: `/api/v1/sleep/sessions`, `/study/sessions`, `/examinations`. Summary routes: `/sleep/summary`, `/study/summary`, `/analytics/sleep-study`. POST `/study/tasks/:id/schedule` checks an owned todo task and calls the public scheduling service; planning never records study or changes goal/task progress. Scheduling publishes its existing event response schema as a public contract.
+- Records carry explicit UTC instants and IANA timezone labels. Sleep and study provenance is manual; optional private notes are not logged. Completed sessions cannot end in the future. Operational record limits are 48 elapsed hours for sleep and 24 for study, not medical thresholds. Awake/break minutes leave positive net duration.
+- Same-user session overlaps are rejected within each domain by PostgreSQL exclusion constraints, including concurrent requests; adjacent intervals and independent cross-domain observations remain allowed. PATCH locks and validates merged interval/break/result state. Every operation reuses identity's authenticated context and scopes repository operations by owner.
+- Summaries select complete sessions ending in `[from,to)`, assigning full net minutes to the end local date in the requested timezone (default UTC). History uses interval overlap, so summary/history inclusion intentionally differs. Windows are positive and at most 93 elapsed days; more than 10000 contributing rows per source returns 409 instead of truncated totals. Bedtime consistency is the mean shortest circular local-clock shift between adjacent main-session starts, excluding naps; it is descriptive, not a health score. Sparse averages and missing cross-domain daily observations are null.
+- Examinations use explicit scheduled instants and optional paired score/maxScore with completed status. Summary exam percentages are unweighted descriptive averages, not GPA. Study subject labels are trimmed and case-sensitive. Task/exam deletion detaches links while preserving observed study; account deletion cascades owned records.
+- Migration `0004_sleep_education.sql` adds the three domain tables plus reviewed ownership/exclusion/trigger SQL. It installs PostgreSQL btree_gist: provision the extension or give the migration role database CREATE privilege. Preserve these manual contracts outside Drizzle snapshots, including the exam FK's column-specific SET NULL behavior. No npm package was added.
+- Domain/HTTP checks cover DST elapsed time, circular midnight shifts, sparse samples, interval/result validity, and bounded summaries. PostgreSQL tests cover CRUD/history, overlap races, ownership, date-window boundaries, planning, link detachment, and cross-domain review. Verified totals: 30 unit/HTTP tests and 28 PostgreSQL integration tests; type checking, lint, formatting, build, OpenAPI generation, and schema generation pass. Source/compiled migrations pass on a second empty database, and a real compiled HTTP smoke covers sleep, study, exam results, task scheduling, cross-domain review, detachment, revocation, private logs, and shutdown. Hosted CI execution remains unverified.
+- Read `docs/sleep-education-api.md` and `docs/decisions/0005-observed-sleep-education.md` for endpoint contracts, allocation semantics, operational limits, provenance, and privacy/deletion behavior. No recommendation thresholds, automatic goal aggregation, import pipeline, or LLM is introduced. Production export/deletion/retention/backup requirements remain future work before substantial personal-data storage.
+
 ### Working commands and next task
 
 - `npm ci`, then `npm run check` for ordinary changes. The test script quotes the integration exclusion glob so adding test files cannot change shell argument expansion.
-- `npm run db:up`, then `npm run db:migrate` for the development database (copy `.env.example` to `.env` first). M3 migrations have not been automatically applied to the user's development database. Start the API with `npm run dev` after migrating.
+- `npm run db:up`, then `npm run db:migrate` for the development database (copy `.env.example` to `.env` first). M4/M5 migration has not been automatically applied to the user's development database. Start the API with `npm run dev` after migrating.
 - `TEST_DATABASE_URL=<disposable PostgreSQL URL> npm run test:integration` applies migrations to the named test database; never use production/personal data. Integration files run serially to avoid migration races. Identity tests clean only accounts they create.
 - Run `npm audit --audit-level=moderate` after dependency changes and regenerate OpenAPI after public contract changes.
-- Next milestone: M4, starting with sleep session recording and deterministic summaries. New domain application operations must enforce ownership using authenticated identity, without trusting client user IDs. No future module scaffolding is needed.
+- Next milestone: M6, starting with a reviewed evidence catalog and a small set of deterministic recommendation rules. Do not invent scientific sources or imply that descriptive M4/M5 metrics are recommendations. New domain application operations must enforce ownership using authenticated identity, without trusting client user IDs. No future module scaffolding is needed.
 - Email verification/recovery, password changes, MFA, refresh tokens, browser BFF/cookie integration, export/deletion, and production backup/retention automation remain future work. Email is an unverified identifier, and process-local rate limiting is not distributed abuse protection. Do not claim readiness for substantial personal-data collection.
 
 ## Agent operating instructions
@@ -278,7 +290,7 @@ Do not make core business operations dependent on LLM availability.
 
 Before calling the foundation stable, verify:
 
-- [ ] A new domain can be added without modifying unrelated domain internals.
+- [x] A new domain can be added without modifying unrelated domain internals (sleep/education use published identity/task/scheduling services).
 - [x] Domain calculations can be tested without running HTTP or PostgreSQL (goal progress and temporal validation).
 - [ ] Independent clients use OpenAPI contracts, not server implementation imports.
 - [x] Core API behavior works without AI services.
