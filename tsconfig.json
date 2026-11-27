@@ -17,6 +17,7 @@
     "src/**/*.ts",
     "tests/**/*.ts",
     "scripts/**/*.ts",
-    "drizzle.config.ts"
+    "drizzle.config.ts",
+    "vitest.integration.config.ts"
   ]
 }

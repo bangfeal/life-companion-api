@@ -1,7 +1,16 @@
 {
   "openapi": "3.1.0",
   "info": { "title": "Life Companion API", "version": "1.0.0" },
-  "components": { "schemas": {} },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Opaque, revocable session token. Not a JWT."
+      }
+    },
+    "schemas": {}
+  },
   "paths": {
     "/health": {
       "get": {
@@ -25,6 +34,1002 @@
           },
           "500": {
             "description": "Unexpected server failure",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "summary": "Register an account and issue a seven-day session",
+        "tags": ["Identity"],
+        "description": "Email is case-insensitive. Duplicate registration returns 409. No email verification is performed.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "examples": ["user@example.com"]
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 15,
+                    "maxLength": 128,
+                    "writeOnly": true,
+                    "description": "15–128 characters; never trimmed or truncated."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["accessToken", "tokenType", "expiresAt", "user"],
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "Opaque token; send in Authorization: Bearer <token>. Returned only at issuance."
+                    },
+                    "tokenType": { "type": "string", "enum": ["Bearer"] },
+                    "expiresAt": { "type": "string", "format": "date-time" },
+                    "user": {
+                      "type": "object",
+                      "required": ["id", "email", "createdAt", "profile"],
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid" },
+                        "email": { "type": "string", "format": "email" },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "profile": {
+                          "type": "object",
+                          "required": ["displayName", "timeZone"],
+                          "properties": {
+                            "displayName": {
+                              "anyOf": [
+                                { "type": "string" },
+                                { "type": "null" }
+                              ]
+                            },
+                            "timeZone": { "type": "string" }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, expired or revoked credentials",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Registration could not be completed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 4 KiB",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected failure",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity unavailable or password capacity exceeded",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Issue a new seven-day bearer session",
+        "tags": ["Identity"],
+        "description": "Unknown accounts and incorrect passwords return the same 401 response.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "examples": ["user@example.com"]
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 15,
+                    "maxLength": 128,
+                    "writeOnly": true,
+                    "description": "15–128 characters; never trimmed or truncated."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["accessToken", "tokenType", "expiresAt", "user"],
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "Opaque token; send in Authorization: Bearer <token>. Returned only at issuance."
+                    },
+                    "tokenType": { "type": "string", "enum": ["Bearer"] },
+                    "expiresAt": { "type": "string", "format": "date-time" },
+                    "user": {
+                      "type": "object",
+                      "required": ["id", "email", "createdAt", "profile"],
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid" },
+                        "email": { "type": "string", "format": "email" },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "profile": {
+                          "type": "object",
+                          "required": ["displayName", "timeZone"],
+                          "properties": {
+                            "displayName": {
+                              "anyOf": [
+                                { "type": "string" },
+                                { "type": "null" }
+                              ]
+                            },
+                            "timeZone": { "type": "string" }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, expired or revoked credentials",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Registration could not be completed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 4 KiB",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected failure",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity unavailable or password capacity exceeded",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "summary": "Revoke the presented session only",
+        "tags": ["Identity"],
+        "description": "Other sessions remain valid. Repeating logout with the revoked token returns 401.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "204": { "description": "Session revoked; empty response body" },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, expired or revoked credentials",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Registration could not be completed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 4 KiB",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected failure",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity unavailable or password capacity exceeded",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "summary": "Read the authenticated user and profile",
+        "tags": ["Identity"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["id", "email", "createdAt", "profile"],
+                  "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "email": { "type": "string", "format": "email" },
+                    "createdAt": { "type": "string", "format": "date-time" },
+                    "profile": {
+                      "type": "object",
+                      "required": ["displayName", "timeZone"],
+                      "properties": {
+                        "displayName": {
+                          "anyOf": [{ "type": "string" }, { "type": "null" }]
+                        },
+                        "timeZone": { "type": "string" }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, expired or revoked credentials",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Registration could not be completed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 4 KiB",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected failure",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity unavailable or password capacity exceeded",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update only the authenticated user profile",
+        "tags": ["Identity"],
+        "description": "Omitted fields remain unchanged. A null displayName clears it; timeZone must be UTC or a recognized IANA zone. Identity and email cannot be changed here.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "anyOf": [
+                      { "type": "string", "minLength": 1, "maxLength": 100 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "timeZone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "examples": ["Europe/Madrid"]
+                  }
+                },
+                "additionalProperties": false,
+                "minProperties": 1
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["id", "email", "createdAt", "profile"],
+                  "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "email": { "type": "string", "format": "email" },
+                    "createdAt": { "type": "string", "format": "date-time" },
+                    "profile": {
+                      "type": "object",
+                      "required": ["displayName", "timeZone"],
+                      "properties": {
+                        "displayName": {
+                          "anyOf": [{ "type": "string" }, { "type": "null" }]
+                        },
+                        "timeZone": { "type": "string" }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, expired or revoked credentials",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Registration could not be completed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 4 KiB",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected failure",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["type", "title", "status", "detail"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "title": { "type": "string" },
+                    "status": { "type": "integer" },
+                    "detail": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity unavailable or password capacity exceeded",
             "content": {
               "application/problem+json": {
                 "schema": {

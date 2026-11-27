@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
+import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { createDatabase } from '../../src/infrastructure/database/client.js';
 // Explicit opt-in: use a disposable database; this test applies migrations.
@@ -16,7 +17,9 @@ it('applies migrations to PostgreSQL and safely reruns them', async () => {
     const rows = await database.db.execute(
       sql`select count(*)::int as count from drizzle.__drizzle_migrations`,
     );
-    expect(rows[0]?.count).toBe(1);
+    expect(rows[0]?.count).toBe(
+      readMigrationFiles({ migrationsFolder: 'drizzle/migrations' }).length,
+    );
     const result = await database.db.execute(sql`select 1 as value`);
     expect(result[0]?.value).toBe(1);
   } finally {

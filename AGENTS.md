@@ -8,26 +8,29 @@ The API must remain useful without an LLM and must serve multiple independent cl
 
 This document contains the implementation guide and the current verified repository status. Inspect the repository before making changes; adapt paths and commands to the actual project. Keep decisions reversible where possible.
 
-## Current repository status — 2026-11-15
+## Current repository status — 2026-11-27
 
-M1 is implemented and locally verified against real PostgreSQL. M2–M8 remain planned; authentication, domain tables, recommendations, and AI are not implemented.
+M1 and M2 are implemented and locally verified against real PostgreSQL. M3–M8 remain planned; goals, habits, scheduling, sleep, education, recommendations, and AI are not implemented.
 
-- Runtime/tooling: Node.js 24, TypeScript ESM, Fastify, `typebox` (the package required by the installed Fastify type provider), Vitest, ESLint, and Prettier.
-- `src/app.ts` exports `buildApp()`; `src/main.ts` handles configuration, logging, startup, and graceful shutdown. `/health` is process liveness and intentionally does not query PostgreSQL.
-- `/openapi.json` serves OpenAPI 3.1; `npm run openapi:generate` refreshes the committed `openapi.json`. Do not edit that generated contract manually.
-- PostgreSQL 17 is configured in Docker Compose; Drizzle/postgres.js handle database access and migrations. The baseline migration executes `SELECT 1` and establishes migration bookkeeping without introducing domain tables. Migrations run explicitly, outside HTTP startup.
-- Verified locally: `npm run check` (type checking, lint, formatting, 12 HTTP/configuration tests, production build), compiled HTTP startup and shutdown, and OpenAPI generation. Clean PostgreSQL 17.11 databases passed `npm run db:migrate` twice and `npm run test:integration` (1 test).
-- Docker Compose is now verified locally: the PostgreSQL 17 container is healthy on localhost:5432, the development database migration was applied by the user, and `life_companion_test` was created and passed the integration test. `npm run dev` started successfully and `/health` returned `{"status":"ok"}`. Earlier clean-database checks also used a temporary PostgreSQL 17.11 binary under `/tmp`. Hosted GitHub Actions execution remains unverified; CI is configured with PostgreSQL 17.
-- Dependency review: `npm audit` reports zero vulnerabilities after overrides for `minimatch` and the legacy loader's `esbuild`. See `docs/decisions/0002-development-dependency-overrides.md` for rationale, compatibility checks, and removal criteria. Reassess overrides when updating their parent tools; do not use `npm audit fix --force` to downgrade the toolchain.
+- Runtime/tooling: Node.js 24, TypeScript ESM, Fastify, `typebox`, Vitest, ESLint, Prettier, and `@fastify/rate-limit`.
+- `src/app.ts` exports `buildApp(options, identityService?)`; routes stay registered without a database for contract generation, but identity operations then return 503. `src/main.ts` requires `DATABASE_URL`, composes the identity service, and closes its database pool on shutdown. `/health` remains process-only liveness.
+- `src/modules/identity/index.ts` exports the public service factory/type and route registration. Application operations use an injected repository port and validate sessions themselves; other modules must consume public services, not tables/repositories. Only the database schema-discovery file re-exports owned tables for migration generation.
+- Identity endpoints: POST `/api/v1/auth/register`, `/auth/login`, `/auth/logout`; GET/PATCH `/api/v1/me`. Credentials issue opaque seven-day bearer tokens; only SHA-256 token digests and salted scrypt password hashes are persisted. Logout revokes only the presented session. Profiles support displayName and a validated IANA timezone; client-supplied ownership fields are rejected.
+- The migration `0001_identity.sql` adds users, user_profiles, and auth_sessions with foreign keys, uniqueness, expiry/hash constraints, and indexes. The earlier baseline is retained. Registration creates user/profile transactionally and handles duplicate races. Expired sessions are ignored immediately and pruned on subsequent session issuance.
+- Identity responses are no-store and use sanitized Problem Details. Rate limits are per-IP/per-route and process-local. Password derivations have a two-job process-wide capacity bound. See `docs/decisions/0003-identity-and-sessions.md` for security and lifecycle tradeoffs.
+- OpenAPI 3.1 includes bearer security and every identity operation. Regenerate the committed `openapi.json`; do not edit it manually.
+- Verified M2: 18 unit/HTTP tests and 10 PostgreSQL integration tests; type checking, lint, formatting, and build. PostgreSQL checks use an isolated fresh Docker container, not the development database. The integration suite includes HTTP → application → persistence and direct application authorization, two-user isolation, profile validation, invalid/expired/revoked sessions, concurrent duplicate registration, and rate limits.
+- M1 local Docker/health and compiled-server checks passed on 2026-11-15. Hosted GitHub Actions execution remains unverified; CI includes PostgreSQL 17, audits, migration reruns, and contract drift checks. M2 source and compiled migration runners passed against a second empty database; a real HTTP smoke test covered registration, private profile reads/updates, logout/revocation, OpenAPI, credential-free logs, and graceful shutdown.
+- `npm audit --audit-level=moderate` reports zero vulnerabilities on 2026-11-27 after adding the rate-limit plugin. Audit results remain subject to fresh verification after changes. Keep the documented minimatch/esbuild overrides under review; do not use `npm audit fix --force` to downgrade the toolchain.
 
 ### Working commands and next task
 
-- `npm ci`, then `npm run check` for ordinary changes.
-- `npm run db:up`, then `npm run db:migrate` for the local development database (copy `.env.example` to `.env` first).
-- `TEST_DATABASE_URL=<disposable PostgreSQL URL> npm run test:integration` explicitly applies migrations to the named test database; never point it at personal or production data. See README for creating the test database.
+- `npm ci`, then `npm run check` for ordinary changes. The test script quotes the integration exclusion glob so adding test files cannot change shell argument expansion.
+- `npm run db:up`, then `npm run db:migrate` for the development database (copy `.env.example` to `.env` first). M2 migration has not been automatically applied to the user's development database. Start the API with `npm run dev` after migrating.
+- `TEST_DATABASE_URL=<disposable PostgreSQL URL> npm run test:integration` applies migrations to the named test database; never use production/personal data. Integration files run serially to avoid migration races. Identity tests clean only accounts they create.
 - Run `npm audit --audit-level=moderate` after dependency changes and regenerate OpenAPI after public contract changes.
-- Next milestone: M2 identity and authorization. Choose/document authentication and deliver a small identity slice with application-level authorization tests. Introduce domain tables only with their owning milestone. Do not recreate the foundation or scaffold future modules.
-- Full HTTP → application → persistence and cross-user isolation tests remain future work because no persisted HTTP capabilities or identity exist yet. The foundation's database test verifies migrations and SQL connectivity only.
+- Next milestone: M3, starting with one complete goals slice. New domain application operations must enforce ownership using authenticated identity, without trusting client user IDs. No future module scaffolding is needed.
+- Email verification/recovery, password changes, MFA, refresh tokens, browser BFF/cookie integration, export/deletion, and production backup/retention automation remain future work. Email is an unverified identifier, and process-local rate limiting is not distributed abuse protection. Do not claim readiness for substantial personal-data collection.
 
 ## Agent operating instructions
 
@@ -270,11 +273,11 @@ Before calling the foundation stable, verify:
 - [ ] Independent clients use OpenAPI contracts, not server implementation imports.
 - [x] Core API behavior works without AI services.
 - [ ] Rule outputs are deterministic and unit-testable.
-- [ ] Sensitive operations enforce ownership at the application boundary.
+- [x] Sensitive operations enforce ownership at the application boundary (identity/profile operations).
 - [x] Migrations work on a clean database.
-- [ ] Integration tests cover HTTP -> application -> persistence.
+- [x] Integration tests cover HTTP -> application -> persistence (identity).
 - [ ] Agent actions can be audited, rejected, and safely retried.
-- [ ] Tests show users cannot access each other's records.
+- [x] Tests show users cannot access each other's records (identity profiles).
 
 ## Decision records
 
