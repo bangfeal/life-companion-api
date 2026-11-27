@@ -15,6 +15,20 @@
       "when": 1795769328609,
       "tag": "0001_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795771867359,
+      "tag": "0002_life_management",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795771891084,
+      "tag": "0003_ownership",
+      "breakpoints": true
     }
   ]
 }

@@ -52,6 +52,10 @@ export function createIdentityService(
     };
   }
   return {
+    async authenticate(token: string | undefined) {
+      const session = await authenticate(token);
+      return { userId: session.userId };
+    },
     async register(input: { email: string; password: string }) {
       const email = normalizeEmail(input.email);
       const passwordHash = await hashPassword(input.password);

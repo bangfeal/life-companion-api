@@ -1,6 +1,6 @@
 # Life Companion API
 
-Independent REST API with identity and revocable bearer sessions. Requires Node.js 24 and npm; database tasks also require PostgreSQL 17 (Docker Compose recommended).
+Independent REST API with identity, revocable bearer sessions, goals, daily habits/logs, tasks, and scheduled events. Requires Node.js 24 and npm; database tasks also require PostgreSQL 17 (Docker Compose recommended).
 
 ## Local development
 
@@ -34,7 +34,7 @@ docker compose exec postgres createdb -U companion life_companion_test
 TEST_DATABASE_URL=postgres://companion:companion@localhost:5432/life_companion_test npm run test:integration
 ```
 
-Tests apply migrations and verify repeat execution. CI runs them against a fresh PostgreSQL service. `npm run db:down` stops the database while preserving its named volume. Identity tables are implemented; goals, sleep, education, and other life-domain records are not.
+Tests apply migrations and verify repeat execution. CI runs them against a fresh PostgreSQL service. `npm run db:down` stops the database while preserving its named volume. Identity and shared life-management tables are implemented. Sleep, education, recommendations, and AI remain future milestones.
 
 ## Project layout
 
@@ -45,7 +45,7 @@ Tests apply migrations and verify repeat execution. CI runs them against a fresh
 - `tests`: HTTP/configuration tests and explicit PostgreSQL integration tests.
 - `docs/decisions`: architecture decisions.
 
-M2 identity and authorization is implemented. See [the identity API guide](docs/identity-api.md) for endpoints, curl examples, and limitations, and [the authentication decision](docs/decisions/0003-identity-and-sessions.md) for session and password design. Next milestone: goals, followed by the other shared capabilities as needed. New domain modules should own persistence and publish application operations; business calculations should remain independent of HTTP and SQL.
+M2 identity and authorization is implemented. See [the identity API guide](docs/identity-api.md) for endpoints, curl examples, and limitations, and [the authentication decision](docs/decisions/0003-identity-and-sessions.md) for session and password design. M3 shared life capabilities are now implemented; see [the life-management API guide](docs/life-management-api.md). Next milestone: sleep recording and deterministic summaries. New domain modules should own persistence and publish application operations; business calculations should remain independent of HTTP and SQL.
 
 ## Verification status
 
@@ -58,3 +58,11 @@ On 2026-11-15, clean PostgreSQL 17.11 databases passed the migration CLI twice a
 Registration/login issue opaque seven-day bearer sessions, logout revokes the presented session, and GET/PATCH `/api/v1/me` authorize private profile access inside application operations. Passwords use salted scrypt; only token hashes are stored. The new migration creates users, profiles, and sessions with constraints and ownership foreign keys. Identity endpoints are rate-limited and use no-store responses. Read the API guide before integrating a client; no cookies, refresh tokens, email verification, account recovery, or MFA are provided.
 
 18 unit/HTTP tests and 10 PostgreSQL integration tests pass, including cross-user isolation, invalid/expired/revoked credentials, concurrent duplicate registration, profile validation, and authentication rate limiting. Migration setup uses a fresh isolated PostgreSQL 17 container and serial integration test files. The development database is not automatically migrated by this change: run `npm run db:up` and `npm run db:migrate` before starting the updated server.
+
+## M3 shared capabilities — 2026-11-27
+
+Goals support measurable manually reported progress and sleep/education domain associations. Daily habits support retry-safe completion logs by local date. Tasks can link to owned goals, and timed calendar events can link to owned tasks. Each capability supports private create/list/read/patch/delete operations, bounded pagination, validation, and documented filters. This does not implement the sleep or education domains.
+
+The composition root `src/life-management.ts` connects public module services. Authorization remains inside each application operation. Cross-module ownership foreign keys and update triggers are explicit SQL contracts in `0003_ownership.sql`; preserve these when changing migrations, and do not bypass migrations with schema-push commands. Deleting linked goals/tasks detaches references while preserving independent records; deleting habits cascades their logs.
+
+See [the M3 decision](docs/decisions/0004-shared-life-capabilities.md) for model limits, module boundaries, pagination, retries, and retention. Apply pending migrations before starting the updated API. Verification uses isolated databases and does not migrate the user's development database.

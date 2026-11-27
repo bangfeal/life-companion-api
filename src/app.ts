@@ -8,6 +8,11 @@ import {
   registerIdentityRoutes,
   type IdentityService,
 } from './modules/identity/index.js';
+import type { LifeManagementServices } from './life-management.js';
+import { registerGoalsRoutes } from './modules/goals/index.js';
+import { registerHabitsRoutes } from './modules/habits/index.js';
+import { registerTasksRoutes } from './modules/tasks/index.js';
+import { registerSchedulingRoutes } from './modules/scheduling/index.js';
 import swagger from '@fastify/swagger';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from 'typebox';
@@ -16,6 +21,7 @@ import { ProblemSchema } from './shared/problem.js';
 export async function buildApp(
   options: FastifyServerOptions = {},
   identity?: IdentityService,
+  life?: LifeManagementServices,
 ) {
   const app = Fastify({
     ...options,
@@ -114,5 +120,19 @@ export async function buildApp(
   await app.register(async (scope) => registerIdentityRoutes(scope, identity), {
     prefix: '/api/v1',
   });
+  await app.register(async (scope) => registerGoalsRoutes(scope, life?.goals), {
+    prefix: '/api/v1',
+  });
+  await app.register(
+    async (scope) => registerHabitsRoutes(scope, life?.habits),
+    { prefix: '/api/v1' },
+  );
+  await app.register(async (scope) => registerTasksRoutes(scope, life?.tasks), {
+    prefix: '/api/v1',
+  });
+  await app.register(
+    async (scope) => registerSchedulingRoutes(scope, life?.scheduling),
+    { prefix: '/api/v1' },
+  );
   return app;
 }
