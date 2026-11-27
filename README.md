@@ -1,6 +1,6 @@
 # Life Companion API
 
-Independent REST API foundation. Requires Node.js 24 and npm; database tasks also require PostgreSQL 17 (Docker Compose recommended).
+Independent REST API with identity and revocable bearer sessions. Requires Node.js 24 and npm; database tasks also require PostgreSQL 17 (Docker Compose recommended).
 
 ## Local development
 
@@ -12,7 +12,7 @@ npm run db:migrate
 npm run dev
 ```
 
-`GET http://127.0.0.1:3000/health` returns `{"status":"ok"}`. It is process liveness, not database readiness. `GET /openapi.json` serves OpenAPI 3.1. The HTTP foundation can run without PostgreSQL; database commands require `DATABASE_URL`. Configuration errors fail startup. `.env` is local and ignored; the example credentials are for local development only.
+`GET http://127.0.0.1:3000/health` returns `{"status":"ok"}`. It is process liveness, not database readiness. `GET /openapi.json` serves OpenAPI 3.1. The app factory and OpenAPI export can run without PostgreSQL; the server entry point and database commands require `DATABASE_URL`. Identity operations require a live database and applied migrations. Configuration errors fail startup. `.env` is local and ignored; the example credentials are for local development only.
 
 ```sh
 npm run check
@@ -34,20 +34,27 @@ docker compose exec postgres createdb -U companion life_companion_test
 TEST_DATABASE_URL=postgres://companion:companion@localhost:5432/life_companion_test npm run test:integration
 ```
 
-Tests apply migrations and verify repeat execution. CI runs them against a fresh PostgreSQL service. `npm run db:down` stops the database while preserving its named volume. No domain records or authentication exist yet.
+Tests apply migrations and verify repeat execution. CI runs them against a fresh PostgreSQL service. `npm run db:down` stops the database while preserving its named volume. Identity tables are implemented; goals, sleep, education, and other life-domain records are not.
 
 ## Project layout
 
 - `src/app.ts`: app factory, health and contract routes, error handling.
 - `src/main.ts`: configuration, logging, listening, shutdown.
 - `src/infrastructure/database`: database adapter and migration runner.
+- `src/modules/identity`: public identity services, application authorization, domain validation, HTTP routes, and owned persistence.
 - `tests`: HTTP/configuration tests and explicit PostgreSQL integration tests.
 - `docs/decisions`: architecture decisions.
 
-Next milestone: identity and authorization. New domain modules should own persistence and publish application operations; business calculations should remain independent of HTTP and SQL.
+M2 identity and authorization is implemented. See [the identity API guide](docs/identity-api.md) for endpoints, curl examples, and limitations, and [the authentication decision](docs/decisions/0003-identity-and-sessions.md) for session and password design. Next milestone: goals, followed by the other shared capabilities as needed. New domain modules should own persistence and publish application operations; business calculations should remain independent of HTTP and SQL.
 
 ## Verification status
 
 On 2026-11-15, clean PostgreSQL 17.11 databases passed the migration CLI twice and the integration test. Initial verification used a temporary native PostgreSQL instance. Docker Compose was subsequently verified locally: the PostgreSQL container is healthy, the integration test passed against `life_companion_test`, and the development API returned a successful health response. Hosted CI execution remains unverified. The baseline remains intentionally free of domain tables.
 
 `npm audit` reports zero vulnerabilities after patched development-dependency overrides. See [the dependency decision](docs/decisions/0002-development-dependency-overrides.md) for rationale and removal criteria. CI audits development and production dependencies with `npm audit --audit-level=moderate`.
+
+## M2 verification — 2026-11-27
+
+Registration/login issue opaque seven-day bearer sessions, logout revokes the presented session, and GET/PATCH `/api/v1/me` authorize private profile access inside application operations. Passwords use salted scrypt; only token hashes are stored. The new migration creates users, profiles, and sessions with constraints and ownership foreign keys. Identity endpoints are rate-limited and use no-store responses. Read the API guide before integrating a client; no cookies, refresh tokens, email verification, account recovery, or MFA are provided.
+
+18 unit/HTTP tests and 10 PostgreSQL integration tests pass, including cross-user isolation, invalid/expired/revoked credentials, concurrent duplicate registration, profile validation, and authentication rate limiting. Migration setup uses a fresh isolated PostgreSQL 17 container and serial integration test files. The development database is not automatically migrated by this change: run `npm run db:up` and `npm run db:migrate` before starting the updated server.

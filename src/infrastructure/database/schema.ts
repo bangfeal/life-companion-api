@@ -1,2 +1,6 @@
-// Domain tables will be introduced with their owning modules and migrations.
-export {};
+// Migration discovery only; other modules must use identity's public services.
+export {
+  users,
+  userProfiles,
+  authSessions,
+} from '../../modules/identity/infrastructure/tables.js';

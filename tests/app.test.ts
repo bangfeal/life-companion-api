@@ -24,6 +24,21 @@ describe('HTTP foundation', () => {
     const spec = response.json();
     expect(spec.openapi).toBe('3.1.0');
     expect(spec.paths['/health'].get.responses['200']).toBeDefined();
+    expect(
+      spec.paths['/api/v1/auth/register'].post.responses['201'],
+    ).toBeDefined();
+    expect(spec.paths['/api/v1/me'].get.security).toEqual([{ bearerAuth: [] }]);
+    expect(spec.components.securitySchemes.bearerAuth.scheme).toBe('bearer');
+  });
+  it('keeps identity routes documented but unavailable without an injected service', async () => {
+    const app = await setup();
+    const response = await app.inject('/api/v1/me');
+    expect(response.statusCode).toBe(503);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.headers['content-type']).toContain(
+      'application/problem+json',
+    );
+    expect(response.json().title).toBe('Service Unavailable');
   });
   it('returns Problem Details for missing routes', async () => {
     const app = await setup();
