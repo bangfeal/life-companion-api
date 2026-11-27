@@ -29,6 +29,15 @@ describe('HTTP foundation', () => {
     ).toBeDefined();
     expect(spec.paths['/api/v1/me'].get.security).toEqual([{ bearerAuth: [] }]);
     expect(spec.components.securitySchemes.bearerAuth.scheme).toBe('bearer');
+    for (const path of [
+      '/api/v1/goals',
+      '/api/v1/habits',
+      '/api/v1/tasks',
+      '/api/v1/schedule/events',
+    ]) {
+      expect(spec.paths[path].post.responses['201']).toBeDefined();
+      expect(spec.paths[path].get.security).toEqual([{ bearerAuth: [] }]);
+    }
   });
   it('keeps identity routes documented but unavailable without an injected service', async () => {
     const app = await setup();
@@ -39,6 +48,7 @@ describe('HTTP foundation', () => {
       'application/problem+json',
     );
     expect(response.json().title).toBe('Service Unavailable');
+    expect((await app.inject('/api/v1/goals')).statusCode).toBe(503);
   });
   it('returns Problem Details for missing routes', async () => {
     const app = await setup();

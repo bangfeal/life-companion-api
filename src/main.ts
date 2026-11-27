@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { createLifeManagement } from './life-management.js';
 import { buildApp } from './app.js';
 import { createDatabase } from './infrastructure/database/client.js';
 import { createIdentityService } from './modules/identity/index.js';
@@ -6,6 +7,7 @@ import { readDatabaseUrl, readConfig } from './config.js';
 
 const config = readConfig();
 const database = createDatabase(readDatabaseUrl());
+const identity = createIdentityService(database.db);
 const app = await buildApp(
   {
     logger: {
@@ -25,7 +27,8 @@ const app = await buildApp(
       },
     },
   },
-  createIdentityService(database.db),
+  identity,
+  createLifeManagement(database.db, identity),
 );
 app.addHook('onClose', async () => {
   await database.close();

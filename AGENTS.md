@@ -10,10 +10,10 @@ This document contains the implementation guide and the current verified reposit
 
 ## Current repository status — 2026-11-27
 
-M1 and M2 are implemented and locally verified against real PostgreSQL. M3–M8 remain planned; goals, habits, scheduling, sleep, education, recommendations, and AI are not implemented.
+M1, M2, and M3 are implemented and locally verified against real PostgreSQL. M4–M8 remain planned; specialized sleep/education, recommendations, and AI are not implemented.
 
 - Runtime/tooling: Node.js 24, TypeScript ESM, Fastify, `typebox`, Vitest, ESLint, Prettier, and `@fastify/rate-limit`.
-- `src/app.ts` exports `buildApp(options, identityService?)`; routes stay registered without a database for contract generation, but identity operations then return 503. `src/main.ts` requires `DATABASE_URL`, composes the identity service, and closes its database pool on shutdown. `/health` remains process-only liveness.
+- `src/app.ts` exports `buildApp(options, identityService?, lifeManagementServices?)`; routes stay registered without a database for contract generation, but identity operations then return 503. `src/main.ts` requires `DATABASE_URL`, composes the identity service, and closes its database pool on shutdown. `/health` remains process-only liveness.
 - `src/modules/identity/index.ts` exports the public service factory/type and route registration. Application operations use an injected repository port and validate sessions themselves; other modules must consume public services, not tables/repositories. Only the database schema-discovery file re-exports owned tables for migration generation.
 - Identity endpoints: POST `/api/v1/auth/register`, `/auth/login`, `/auth/logout`; GET/PATCH `/api/v1/me`. Credentials issue opaque seven-day bearer tokens; only SHA-256 token digests and salted scrypt password hashes are persisted. Logout revokes only the presented session. Profiles support displayName and a validated IANA timezone; client-supplied ownership fields are rejected.
 - The migration `0001_identity.sql` adds users, user_profiles, and auth_sessions with foreign keys, uniqueness, expiry/hash constraints, and indexes. The earlier baseline is retained. Registration creates user/profile transactionally and handles duplicate races. Expired sessions are ignored immediately and pruned on subsequent session issuance.
@@ -23,13 +23,23 @@ M1 and M2 are implemented and locally verified against real PostgreSQL. M3–M8 
 - M1 local Docker/health and compiled-server checks passed on 2026-11-15. Hosted GitHub Actions execution remains unverified; CI includes PostgreSQL 17, audits, migration reruns, and contract drift checks. M2 source and compiled migration runners passed against a second empty database; a real HTTP smoke test covered registration, private profile reads/updates, logout/revocation, OpenAPI, credential-free logs, and graceful shutdown.
 - `npm audit --audit-level=moderate` reports zero vulnerabilities on 2026-11-27 after adding the rate-limit plugin. Audit results remain subject to fresh verification after changes. Keep the documented minimatch/esbuild overrides under review; do not use `npm audit fix --force` to downgrade the toolchain.
 
+### M3 implementation
+
+- Branch `feat/m3-life-management` starts from merged `origin/master` (M2). The four modules goals, habits, tasks, and scheduling expose public application services; `src/life-management.ts` composes them without private peer table access.
+- Identity now exports `authenticate(token)` returning trusted owner context. Every life operation calls it and scopes persistence by owner. Habits/tasks validate goals through the public goals service; scheduling validates tasks through the public tasks service. Other-user and absent resources return the same 404.
+- Routes: CRUD/list for `/api/v1/goals`, `/habits`, `/tasks`, `/schedule/events`, plus POST/GET `/habits/:id/logs`. Lists use limit 1–100 (default 20), offset 0–10000, deterministic ordering, and documented filters. Mutations are rate-limited and private responses are no-store.
+- Goals have manually reported current/target values, units, explicit status, calendar due dates, and relational sleep/education associations. Progress percentage is deterministic and capped at 100. Habits are daily with immutable timezone and per-local-date completion upserts; archived habits reject log writes. Tasks have due instants/status. Events have explicit offset-bearing intervals and an IANA timezone; partial interval edits lock and validate the merged row.
+- Migrations `0002_life_management.sql` and `0003_ownership.sql` add six owned tables, indexes, constraints, timestamp triggers, and cross-module owner FKs. Cross-module FKs/triggers are intentionally explicit SQL contracts outside Drizzle snapshots: preserve them in future migrations; never use schema-push/reset to replace reviewed migrations. Deleting goals/tasks detaches optional child links; habits cascade logs; account deletion cascades owned resources.
+- Verified: 23 unit/HTTP tests and 19 PostgreSQL integration tests, including goal/domain CRUD, pagination, daily-log retries, date/DST/overlap filtering, cross-user reads/writes/links, SQL ownership enforcement, detachment/cascades, and concurrent event edits. Type checks, lint, format, and build pass. Source and compiled migration runners passed against a second empty database. A real compiled HTTP smoke test covered all four modules, goal progress, daily logs, link detachment, revocation, credential-free logs, and graceful shutdown.
+- `docs/life-management-api.md` and `docs/decisions/0004-shared-life-capabilities.md` document contracts, model limits, privacy/deletion semantics, and retry limitations. Resource creation POSTs have no general idempotency protocol; clients must not automatically retry uncertain creates. No recurrence/reminder engine or automatic goal aggregation exists.
+
 ### Working commands and next task
 
 - `npm ci`, then `npm run check` for ordinary changes. The test script quotes the integration exclusion glob so adding test files cannot change shell argument expansion.
-- `npm run db:up`, then `npm run db:migrate` for the development database (copy `.env.example` to `.env` first). M2 migration has not been automatically applied to the user's development database. Start the API with `npm run dev` after migrating.
+- `npm run db:up`, then `npm run db:migrate` for the development database (copy `.env.example` to `.env` first). M3 migrations have not been automatically applied to the user's development database. Start the API with `npm run dev` after migrating.
 - `TEST_DATABASE_URL=<disposable PostgreSQL URL> npm run test:integration` applies migrations to the named test database; never use production/personal data. Integration files run serially to avoid migration races. Identity tests clean only accounts they create.
 - Run `npm audit --audit-level=moderate` after dependency changes and regenerate OpenAPI after public contract changes.
-- Next milestone: M3, starting with one complete goals slice. New domain application operations must enforce ownership using authenticated identity, without trusting client user IDs. No future module scaffolding is needed.
+- Next milestone: M4, starting with sleep session recording and deterministic summaries. New domain application operations must enforce ownership using authenticated identity, without trusting client user IDs. No future module scaffolding is needed.
 - Email verification/recovery, password changes, MFA, refresh tokens, browser BFF/cookie integration, export/deletion, and production backup/retention automation remain future work. Email is an unverified identifier, and process-local rate limiting is not distributed abuse protection. Do not claim readiness for substantial personal-data collection.
 
 ## Agent operating instructions
@@ -269,15 +279,15 @@ Do not make core business operations dependent on LLM availability.
 Before calling the foundation stable, verify:
 
 - [ ] A new domain can be added without modifying unrelated domain internals.
-- [ ] Domain calculations can be tested without running HTTP or PostgreSQL.
+- [x] Domain calculations can be tested without running HTTP or PostgreSQL (goal progress and temporal validation).
 - [ ] Independent clients use OpenAPI contracts, not server implementation imports.
 - [x] Core API behavior works without AI services.
 - [ ] Rule outputs are deterministic and unit-testable.
-- [x] Sensitive operations enforce ownership at the application boundary (identity/profile operations).
+- [x] Sensitive operations enforce ownership at the application boundary (identity and shared life operations).
 - [x] Migrations work on a clean database.
-- [x] Integration tests cover HTTP -> application -> persistence (identity).
+- [x] Integration tests cover HTTP -> application -> persistence (identity and shared life operations).
 - [ ] Agent actions can be audited, rejected, and safely retried.
-- [x] Tests show users cannot access each other's records (identity profiles).
+- [x] Tests show users cannot access each other's records (identity and shared life records).
 
 ## Decision records
 
