@@ -13,6 +13,9 @@ import { registerGoalsRoutes } from './modules/goals/index.js';
 import { registerHabitsRoutes } from './modules/habits/index.js';
 import { registerTasksRoutes } from './modules/tasks/index.js';
 import { registerSchedulingRoutes } from './modules/scheduling/index.js';
+import { registerSleepRoutes } from './modules/sleep/index.js';
+import { registerEducationRoutes } from './modules/education/index.js';
+import { registerAnalyticsRoutes } from './modules/analytics/index.js';
 import swagger from '@fastify/swagger';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from 'typebox';
@@ -132,6 +135,17 @@ export async function buildApp(
   });
   await app.register(
     async (scope) => registerSchedulingRoutes(scope, life?.scheduling),
+    { prefix: '/api/v1' },
+  );
+  await app.register(async (scope) => registerSleepRoutes(scope, life?.sleep), {
+    prefix: '/api/v1',
+  });
+  await app.register(
+    async (scope) => registerEducationRoutes(scope, life?.education),
+    { prefix: '/api/v1' },
+  );
+  await app.register(
+    async (scope) => registerAnalyticsRoutes(scope, life?.analytics),
     { prefix: '/api/v1' },
   );
   return app;

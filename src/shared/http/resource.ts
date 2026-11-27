@@ -35,7 +35,9 @@ export const resourceErrors = {
   400: problem('Invalid input'),
   401: problem('Missing, expired, invalid or revoked session'),
   404: problem('Resource or related resource not found for this user'),
-  409: problem('Related resource changed; refresh and retry'),
+  409: problem(
+    'Record conflict, changed relationship, or summary capacity exceeded',
+  ),
   413: problem('Request body too large'),
   415: problem('Unsupported media type'),
   429: problem('Rate limit exceeded'),

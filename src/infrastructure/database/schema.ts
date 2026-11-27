@@ -16,3 +16,9 @@ export {
 } from '../../modules/habits/infrastructure/tables.js';
 export { table as tasks } from '../../modules/tasks/infrastructure/tables.js';
 export { table as scheduleEvents } from '../../modules/scheduling/infrastructure/tables.js';
+
+export { sleepSessions } from '../../modules/sleep/infrastructure/tables.js';
+export {
+  studySessions,
+  examinations,
+} from '../../modules/education/infrastructure/tables.js';

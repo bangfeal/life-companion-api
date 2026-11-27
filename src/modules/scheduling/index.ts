@@ -12,3 +12,5 @@ export function createSchedulingService(
 ) {
   return createService(createRepository(db), identity, related);
 }
+
+export { EventSchema } from './http/contracts.js';

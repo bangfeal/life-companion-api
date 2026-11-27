@@ -1,10 +1,10 @@
+import { EventSchema as Output } from './contracts.js';
 import type { FastifyInstance } from 'fastify';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from 'typebox';
 import type { SchedulingService } from '../application/service.js';
 import { ApplicationError } from '../../../shared/domain/validation.js';
 import {
-  baseProperties,
   bearer,
   EmptyQuery,
   IdParams,
@@ -48,18 +48,6 @@ const Input = Type.Object(
 );
 const Patch = Type.Partial(
   Type.Object(Properties, { additionalProperties: false, minProperties: 1 }),
-);
-const Output = Type.Object(
-  {
-    ...baseProperties,
-    title: Title,
-    description: NullableDescription,
-    taskId: NullableId,
-    startsAt: Instant,
-    endsAt: Instant,
-    timeZone: Zone,
-  },
-  { additionalProperties: false },
 );
 const Query = Type.Object(
   {
